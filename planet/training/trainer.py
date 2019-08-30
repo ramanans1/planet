@@ -344,5 +344,6 @@ class Trainer(object):
     if not self._logdir or not saver:
       return
     tf.gfile.MakeDirs(self._logdir)
-    filename = os.path.join(self._logdir, 'model.ckpt')
-    saver.save(sess, filename, global_step)
+    filename = os.path.join(self._logdir, 'checkpointing_model.ckpt')
+    #saver.save(sess, filename, global_step)
+    saver.save(sess, filename)
