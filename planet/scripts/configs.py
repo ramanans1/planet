@@ -204,7 +204,7 @@ def _training_schedule(config, params):
   config.test_steps = int(params.get('test_steps', 50))
   config.max_steps = int(params.get('max_steps', 5e7))
   config.train_log_every = config.train_steps
-  config.train_checkpoint_every = None
+  config.train_checkpoint_every = 1000
   config.test_checkpoint_every = int(
       params.get('checkpoint_every', 10 * config.test_steps))
   config.checkpoint_to_load = None

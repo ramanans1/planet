@@ -103,7 +103,8 @@ class Trainer(object):
       checkpoint: Checkpoint name to load; None for newest.
     """
     variables = tools.filter_variables(include, exclude)
-    saver = tf.train.Saver(variables, keep_checkpoint_every_n_hours=2)
+    #saver = tf.train.Saver(variables, keep_checkpoint_every_n_hours=1, max_to_keep=1)
+    saver = tf.train.Saver(variables, max_to_keep=1) #New Saver
     if load:
       self._loaders.append(saver)
     if save:
@@ -141,8 +142,15 @@ class Trainer(object):
     feed = feed or {}
     if not score.shape.ndims:
       score = score[None]
+    cluster_restarts = 0
+    dir_exists = True
+    phase_log = os.path.join(self._logdir,name)
+    while dir_exists:
+        dir_exists =  os.path.isdir(os.path.join(phase_log,"run"+str(cluster_restarts)))
+        cluster_restarts += 1
+
     writer = self._logdir and tf.summary.FileWriter(
-        os.path.join(self._logdir, name),
+        os.path.join(phase_log, "run"+str(cluster_restarts)),
         tf.get_default_graph(), flush_secs=30)
     op = self._define_step(name, batch_size, score, summary)
     self._phases.append(_Phase(
