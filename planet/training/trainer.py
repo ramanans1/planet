@@ -104,7 +104,7 @@ class Trainer(object):
     """
     variables = tools.filter_variables(include, exclude)
     #saver = tf.train.Saver(variables, keep_checkpoint_every_n_hours=1, max_to_keep=1)
-    saver = tf.train.Saver(variables, max_to_keep=1) #New Saver
+    saver = tf.train.Saver(variables, max_to_keep=2) #New Saver
     if load:
       self._loaders.append(saver)
     if save:
@@ -339,5 +339,5 @@ class Trainer(object):
       return
     tf.gfile.MakeDirs(self._logdir)
     filename = os.path.join(self._logdir, 'checkpointing_model.ckpt')
-    #saver.save(sess, filename, global_step)
-    saver.save(sess, filename)
+    saver.save(sess, filename, global_step)
+    #saver.save(sess, filename)

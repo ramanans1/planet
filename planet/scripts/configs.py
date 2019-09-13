@@ -262,8 +262,7 @@ def _active_collection(collects, defaults, config, params):
     for collect in collects:
       collect = tools.AttrDict(collect, _defaults=defs)
       sim = _define_simulation(
-          task, config, params, collect.horizon, collect.batch_size,
-          collect.objective)
+          task, config, params, collect.horizon, collect.batch_size,collect.prefix, collect.objective)
       sim.unlock()
       sim.save_episode_dir = collect.save_episode_dir
       sim.steps_after = int(collect.after)
@@ -284,14 +283,19 @@ def _active_collection(collects, defaults, config, params):
 
 
 def _define_simulation(
-    task, config, params, horizon, batch_size, objective='reward',
+    task, config, params, horizon, batch_size,prefix, objective='reward',
     rewards=False):
   planner = params.get('planner', 'cem')
+  if params.get('planner_iterations',10) == 0:
+      if prefix=='train':
+          planner_iterations=0
+      else:
+          planner_iterations=10
   if planner == 'cem':
     planner_fn = tools.bind(
         control.planning.cross_entropy_method,
         amount=params.get('planner_amount', 1000),
-        iterations=params.get('planner_iterations', 10),
+        iterations=planner_iterations,
         topk=params.get('planner_topk', 100),
         horizon=horizon)
   else:
