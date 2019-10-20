@@ -279,11 +279,19 @@ def apply_optimizers(objectives, trainer, config):
 def simulate_episodes(
     config, params, graph, cleanups, expensive_summaries, gif_summary, name):
   def env_ctor():
+    #print("---------INSIDE ENV CTOR----------")
     env = params.task.env_ctor()
+    #print("---CONFIG-----",config)
+    #print("------PARAMS ALL ------",params)
+    #print("--PARAMS TASK---",params.task)
+    #print("---NAME---", name)
+    #print("------ENV--",env)
+    #assert 1==2
     if params.save_episode_dir:
-      env = control.wrappers.CollectGymDataset(env, params.save_episode_dir)
+      env = control.wrappers.CollectGymDataset(env, params.save_episode_dir, logdir=params.curious_dir, is_curious=params.is_curious)
     env = control.wrappers.ConcatObservation(env, ['image'])
     return env
+  #print("---------------SIMULATE EPISODES------------------")
   bind_or_none = lambda x, **kw: x and functools.partial(x, **kw)
   cell = graph.cell
   agent_config = tools.AttrDict(

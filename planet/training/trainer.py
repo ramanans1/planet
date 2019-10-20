@@ -103,7 +103,8 @@ class Trainer(object):
       checkpoint: Checkpoint name to load; None for newest.
     """
     variables = tools.filter_variables(include, exclude)
-    saver = tf.train.Saver(variables, keep_checkpoint_every_n_hours=2)
+    #saver = tf.train.Saver(variables, keep_checkpoint_every_n_hours=2)
+    saver = tf.train.Saver(variables, max_to_keep=4)
     if load:
       self._loaders.append(saver)
     if save:
@@ -184,6 +185,7 @@ class Trainer(object):
           break
         phase, epoch, steps_in = self._find_current_phase(global_step)
         phase_step = epoch * phase.steps + steps_in
+        #print('PHSTEP',phase_step)
         if steps_in % phase.steps < phase.batch_size:
           message = '\n' + ('-' * 50) + '\n'
           message += 'Epoch {} phase {} (phase step {}, global step {}).'
@@ -197,6 +199,7 @@ class Trainer(object):
             phase_step, phase.batch_size, phase.log_every)
         phase.feed[self._report] = self._is_every_steps(
             phase_step, phase.batch_size, phase.report_every)
+        #print('-PHOP----',phase.op)
         summary, mean_score, global_step = sess.run(phase.op, phase.feed)
         if self._is_every_steps(
             phase_step, phase.batch_size, phase.checkpoint_every):

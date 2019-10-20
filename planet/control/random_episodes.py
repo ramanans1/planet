@@ -21,7 +21,7 @@ from planet.control import wrappers
 
 def random_episodes(env_ctor, num_episodes, outdir=None):
   env = env_ctor()
-  env = wrappers.CollectGymDataset(env, outdir)
+  env = wrappers.CollectGymDataset(env, outdir, is_random=True)
   episodes = [] if outdir else None
   for _ in range(num_episodes):
     policy = lambda env, obs: env.action_space.sample()

@@ -154,6 +154,9 @@ def _model_components(config, params):
 def _tasks(config, params):
   tasks = params.get('tasks', ['cheetah_run'])
   tasks = [getattr(tasks_lib, name)(config, params) for name in tasks]
+  #print("------TASKS---------------")
+  #print(tasks)
+  #print(len(tasks))
   config.isolate_envs = params.get('isolate_envs', 'thread')
   def common_spaces_ctor(task, action_spaces):
     env = task.env_ctor()
@@ -204,7 +207,7 @@ def _training_schedule(config, params):
   config.test_steps = int(params.get('test_steps', 50))
   config.max_steps = int(params.get('max_steps', 5e7))
   config.train_log_every = config.train_steps
-  config.train_checkpoint_every = None
+  config.train_checkpoint_every = 1000
   config.test_checkpoint_every = int(
       params.get('checkpoint_every', 10 * config.test_steps))
   config.checkpoint_to_load = None
@@ -212,6 +215,13 @@ def _training_schedule(config, params):
   config.print_metrics_every = config.train_steps // 10
   config.train_dir = os.path.join(params.logdir, 'train_episodes')
   config.test_dir = os.path.join(params.logdir, 'test_episodes')
+  config.curious_run = params.get('curious_run',False)
+  config.curious_dir = params.get('curious_dir', None)
+
+  if config.curious_run==True:
+      assert config.curious_dir != None
+  else:
+      assert config.curious_dir == None
   config.random_collects = _initial_collection(config, params)
   config.train_collects = _active_collection(
       params.get('train_collects', [{}]), dict(
@@ -263,12 +273,14 @@ def _active_collection(collects, defaults, config, params):
       collect = tools.AttrDict(collect, _defaults=defs)
       sim = _define_simulation(
           task, config, params, collect.horizon, collect.batch_size,
-          collect.objective)
+          collect.prefix, collect.objective)
       sim.unlock()
       sim.save_episode_dir = collect.save_episode_dir
       sim.steps_after = int(collect.after)
       sim.steps_every = int(collect.every)
       sim.steps_until = int(collect.until)
+      sim.curious_dir = config.curious_dir if collect.prefix=='train' else None
+      sim.is_curious = config.curious_run
       sim.exploration = tools.AttrDict(
           scale=collect.action_noise,
           schedule=tools.bind(
@@ -284,14 +296,21 @@ def _active_collection(collects, defaults, config, params):
 
 
 def _define_simulation(
-    task, config, params, horizon, batch_size, objective='reward',
+    task, config, params, horizon, batch_size,prefix, objective='reward',
     rewards=False):
   planner = params.get('planner', 'cem')
+  # Temp Fix for random collections bug
+  planner_iterations = params.get('planner_iterations',10)
+  if params.get('planner_iterations',10)==0:
+      if prefix=='train':
+          planner_iterations = 0
+      else:
+          planner_iterations = 10
   if planner == 'cem':
     planner_fn = tools.bind(
         control.planning.cross_entropy_method,
         amount=params.get('planner_amount', 1000),
-        iterations=params.get('planner_iterations', 10),
+        iterations=planner_iterations,
         topk=params.get('planner_topk', 100),
         horizon=horizon)
   else:

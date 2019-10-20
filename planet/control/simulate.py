@@ -35,6 +35,7 @@ def simulate(
     isolate_envs='none', expensive_summaries=False,
     gif_summary=True, name='simulate'):
   summaries = []
+  #print('----INSIDE SIMULATE----')
   with tf.variable_scope(name):
     return_, image, action, reward, cleanup = collect_rollouts(
         step=step,
@@ -55,6 +56,7 @@ def simulate(
       summaries.append(tools.gif_summary(
           'animation', image, max_outputs=1, fps=20))
   summary = tf.summary.merge(summaries)
+  #print('----EXIT SIMULATE----')
   return summary, return_mean, cleanup
 
 
@@ -63,6 +65,7 @@ def collect_rollouts(
   batch_env = define_batch_env(env_ctor, num_agents, isolate_envs)
   agent = mpc_agent.MPCAgent(batch_env, step, False, False, agent_config)
   cleanup = lambda: batch_env.close()
+  #print('----INSIDE COLL ROLL-----')
 
   def simulate_fn(unused_last, step):
     done, score, unused_summary = simulate_step(
@@ -84,10 +87,18 @@ def collect_rollouts(
   done, score, image, action, reward = tf.scan(
       simulate_fn, tf.range(duration),
       initializer, parallel_iterations=1)
+  #print(batch_env._get_filename())
+  #print('--IMGSHAPE',image.shape)
+  #print('--REWSHAPE',reward.shape)
+  #print('--DONESHAPE',done.shape)
+  #print('--ACSHAPE',action.shape)
+  #print('--SCRSHAPE',score.shape)
+  #assert 1==2
   score = tf.boolean_mask(score, done)
   image = tf.transpose(image, [1, 0, 2, 3, 4])
   action = tf.transpose(action, [1, 0, 2])
   reward = tf.transpose(reward)
+  #print('----EXIT COLL ROLL-----')
   return score, image, action, reward, cleanup
 
 

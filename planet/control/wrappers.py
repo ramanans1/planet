@@ -24,6 +24,7 @@ import os
 import sys
 import traceback
 import uuid
+import glob
 
 import gym
 import gym.spaces
@@ -442,10 +443,19 @@ class CollectGymDataset(object):
   episode length is one more than the number of decision points.
   """
 
-  def __init__(self, env, outdir):
+  def __init__(self, env, outdir, is_random=False, logdir=None, is_curious=False):
     self._env = env
     self._outdir = outdir and os.path.expanduser(outdir)
     self._episode = None
+    self._istest = "test" in outdir
+    self._israndom = is_random
+    self._iscurious = is_curious
+    if not self._israndom and not self._istest and self._iscurious:
+        self._curious_episode = None
+        self._epcounter = 0
+        self._rolloutspath = os.path.join(logdir,'*.npz')
+        self._rolloutlist = [f for f in glob.glob(self._rolloutspath)]
+        self._maxepisodes = len(self._rolloutlist) - 1
 
   def __getattr__(self, name):
     return getattr(self._env, name)
@@ -459,6 +469,9 @@ class CollectGymDataset(object):
       return lambda: self._process_step(action, *future())
 
   def reset(self, *args, **kwargs):
+    if not self._israndom and not self._istest and self._iscurious:
+        self._curious_episode = np.load(self._rolloutlist[self._epcounter], allow_pickle=True)
+        print('--Using Episode Number For Rollout--- ',self._epcounter)
     if kwargs.get('blocking', True):
       observ = self._env.reset(*args, **kwargs)
       return self._process_reset(observ)
@@ -467,12 +480,24 @@ class CollectGymDataset(object):
       return lambda: self._process_reset(future())
 
   def _process_step(self, action, observ, reward, done, info):
-    transition = self._process_observ(observ).copy()
-    transition['action'] = action
-    transition['reward'] = reward
+    if not self._israndom and not self._istest and self._iscurious:
+        self._rollcount +=1
+        transition = {k:v[self._rollcount] for (k,v) in self._curious_episode.items() if k!='done' and k!='info'}
+        observ = {k:v[self._rollcount] for (k,v) in self._curious_episode.items() if k=='position' or k=='velocity' or k=='image'}
+        reward = transition['reward']
+        done = self._curious_episode['done'][self._rollcount]
+        info = self._curious_episode['info'][self._rollcount]
+    else:
+        transition = self._process_observ(observ).copy()
+        transition['action'] = action
+        transition['reward'] = reward
     self._episode.append(transition)
     if done:
       episode = self._get_episode()
+      if not self._israndom and not self._istest and self._iscurious:
+          self._epcounter +=1
+          if self._epcounter > self._maxepisodes:
+              self._epcounter = 0
       # info['episode'] = episode
       if self._outdir:
         filename = self._get_filename()
@@ -482,9 +507,14 @@ class CollectGymDataset(object):
   def _process_reset(self, observ):
     # Resetting the environment provides the observation for time step zero.
     # The action and reward are not known for this time step, so we zero them.
-    transition = self._process_observ(observ).copy()
-    transition['action'] = np.zeros_like(self.action_space.low)
-    transition['reward'] = 0.0
+    if not self._israndom and not self._istest and self._iscurious:
+        self._rollcount = 0
+        transition = {k:v[self._rollcount] for (k,v) in self._curious_episode.items() if k!='done' and k!='info'}
+        observ = {k:v[self._rollcount] for (k,v) in self._curious_episode.items() if k=='position' or k=='velocity' or k=='image'}
+    else:
+        transition = self._process_observ(observ).copy()
+        transition['action'] = np.zeros_like(self.action_space.low)
+        transition['reward'] = 0.0
     self._episode = [transition]
     return observ
 
@@ -512,11 +542,12 @@ class CollectGymDataset(object):
   def _write(self, episode, filename):
     if not tf.gfile.Exists(self._outdir):
       tf.gfile.MakeDirs(self._outdir)
-    with io.BytesIO() as file_:
-      np.savez_compressed(file_, **episode)
-      file_.seek(0)
-      with tf.gfile.Open(filename, 'w') as ff:
-        ff.write(file_.read())
+    # with io.BytesIO() as file_:
+    #   np.savez_compressed(file_, **episode)
+    #   file_.seek(0)
+    #   with tf.gfile.Open(filename, 'w') as ff:
+    #     ff.write(file_.read())
+    np.savez_compressed(filename, **episode)
     folder = os.path.basename(self._outdir)
     name = os.path.splitext(os.path.basename(filename))[0]
     print('Recorded episode {} to {}.'.format(name, folder))
