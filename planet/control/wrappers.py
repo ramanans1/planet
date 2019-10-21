@@ -454,8 +454,9 @@ class CollectGymDataset(object):
         self._curious_episode = None
         self._epcounter = 0
         self._rolloutspath = os.path.join(logdir,'*.npz')
-        self._rolloutlist = [f for f in glob.glob(self._rolloutspath)]
-        self._maxepisodes = len(self._rolloutlist) - 1
+        self._rolloutlist = sorted([f for f in glob.glob(self._rolloutspath)])
+        #self._maxepisodes = len(self._rolloutlist) - 1
+        self._maxepisodes = 1120 
 
   def __getattr__(self, name):
     return getattr(self._env, name)
