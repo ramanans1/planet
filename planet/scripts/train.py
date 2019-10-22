@@ -40,6 +40,9 @@ import functools
 import os
 import sys
 
+os.environ["MUJOCO_GL"] = "osmesa"
+os.environ["PYOPENGL_PLATFORM"] = "osmesa"
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
@@ -53,6 +56,8 @@ import tensorflow as tf
 from planet import tools
 from planet import training
 from planet.scripts import configs
+
+
 
 
 def process(logdir, args):
