@@ -295,8 +295,12 @@ class Trainer(object):
     Returns:
       Session.
     """
+    #from tensorflow.core.protobuf import rewriter_config_pb2
+    #off = rewriter_config_pb2.RewriterConfig.OFF
+
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
+    #config.graph_options.rewrite_options.arithmetic_optimization = off
     try:
       return tf.Session('local', config=config)
     except tf.errors.NotFoundError:

@@ -40,6 +40,7 @@ def define_model(data, trainer, config):
   heads = tools.AttrDict(_unlocked=True)
   dummy_features = cell.features_from_state(cell.zero_state(1, tf.float32))
   for key, head in config.heads.items():
+    print('KEYHEAD', key)
     name = 'head_{}'.format(key)
     kwargs = dict(create_scope_now_=True)
     if key in data:

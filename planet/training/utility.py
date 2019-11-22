@@ -193,7 +193,10 @@ def compute_objectives(posterior, prior, target, graph, config):
   raw_features = graph.cell.features_from_state(posterior)
   heads = graph.heads
   objectives = []
+  print('GRAPHHEADS',graph.heads)
   for name, scale in config.loss_scales.items():
+    print('---NAME---',name)
+    print('---NAME---',config.loss_scales[name])
     if config.loss_scales[name] == 0.0:
       continue
     if name in config.heads and name not in config.gradient_heads:
@@ -227,10 +230,22 @@ def compute_objectives(posterior, prior, target, graph, config):
       objectives.append(Objective('overshooting', loss, min, include, exclude))
 
     else:
-      logprob = heads[name](features).log_prob(target[name])
+      intrinsic_target = None
+      if name=='reward':
+          intrinsic_target = heads['image'](features).log_prob(target['image'])
+          logprob = heads[name](features).log_prob(intrinsic_target)
+      elif name=='image':
+          if intrinsic_target is None:
+              logprob = heads[name](features).log_prob(target[name])
+          else:
+              logprob = intrinsic_target
+      else:
+          logprob = heads[name](features).log_prob(target[name])
       objectives.append(Objective(name, logprob, max, include, exclude))
-
+  print(objectives)
   objectives = [o._replace(value=tf.reduce_mean(o.value)) for o in objectives]
+  print(objectives)
+  assert 1==2
   return objectives
 
 
