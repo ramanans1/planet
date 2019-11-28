@@ -210,6 +210,7 @@ def compute_objectives(posterior, prior, target, graph, config):
 
     if name == 'divergence':
       loss = graph.cell.divergence_from_states(posterior, prior)
+      print('FREE NATS', config.free_nats)
       if config.free_nats is not None:
         loss = tf.maximum(0.0, loss - float(config.free_nats))
       objectives.append(Objective('divergence', loss, min, include, exclude))
@@ -232,8 +233,8 @@ def compute_objectives(posterior, prior, target, graph, config):
     else:
       intrinsic_target = None
       if name=='reward':
-          intrinsic_target = heads['image'](features).log_prob(target['image'])
-          logprob = heads[name](features).log_prob(intrinsic_target)
+          intrinsic_target = tf.stop_gradient(heads['image'](features).log_prob(target['image']) - graph.cell.divergence_from_states(posterior,prior))
+          logprob = heads[name](features).log_prob(tf.math.multiply(intrinsic_target, 1e-4))
       elif name=='image':
           if intrinsic_target is None:
               logprob = heads[name](features).log_prob(target[name])
