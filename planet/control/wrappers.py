@@ -457,8 +457,8 @@ class CollectGymDataset(object):
         self._rolloutspath = os.path.join(logdir,'*.npz')
         self._rolloutlist = [f for f in glob.glob(self._rolloutspath)]
         random.shuffle(self._rolloutlist)
-        #self._maxepisodes = len(self._rolloutlist) - 1
-        self._maxepisodes = 1120
+        self._maxepisodes = len(self._rolloutlist) - 1
+        #self._maxepisodes = 2000
 
   def __getattr__(self, name):
     return getattr(self._env, name)
