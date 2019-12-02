@@ -23,13 +23,13 @@ from planet import tools
 from planet.training import utility
 from planet.tools import summary
 
-
+### Summaries from only one model
 def define_summaries(graph, config, cleanups):
   summaries = []
   plot_summaries = []  # Control dependencies for non thread-safe matplot.
   length = graph.data['length']
-  mask = tf.range(graph.embedded.shape[1].value)[None, :] < length[:, None]
-  heads = graph.heads.copy()
+  mask = tf.range(graph.embedded[0].shape[1].value)[None, :] < length[:, None]
+  heads = graph.heads[0].copy()
   last_time = tf.Variable(lambda: tf.timestamp(), trainable=False)
   last_step = tf.Variable(lambda: 0.0, trainable=False, dtype=tf.float64)
 
@@ -38,13 +38,13 @@ def define_summaries(graph, config, cleanups):
     mean = tf.clip_by_value(mean, 0.0, 1.0)
     return tfd.Independent(tfd.Normal(mean, 1.0), len(dist.event_shape))
   heads.unlock()
-  heads['image'] = lambda features: transform(graph.heads['image'](features))
+  heads['image'] = lambda features: transform(graph.heads[0]['image'](features))
   heads.lock()
 
   with tf.variable_scope('general'):
     summaries += summary.data_summaries(graph.data, config.postprocess_fn)
     summaries += summary.dataset_summaries(config.train_dir)
-    summaries += summary.objective_summaries(graph.objectives)
+    summaries += summary.objective_summaries(graph.objectives[0])
     summaries.append(tf.summary.scalar('step', graph.step))
     new_time, new_step = tf.timestamp(), tf.cast(graph.global_step, tf.float64)
     delta_time, delta_step = new_time - last_time, new_step - last_step
@@ -58,10 +58,10 @@ def define_summaries(graph, config, cleanups):
 
   with tf.variable_scope('closedloop'):
     prior, posterior = tools.unroll.closed_loop(
-        graph.cell, graph.embedded, graph.data['action'], config.debug)
-    summaries += summary.state_summaries(graph.cell, prior, posterior, mask)
+        graph.cell[0], graph.embedded[0], graph.data['action'], config.debug)
+    summaries += summary.state_summaries(graph.cell[0], prior, posterior, mask)
     with tf.variable_scope('prior'):
-      prior_features = graph.cell.features_from_state(prior)
+      prior_features = graph.cell[0].features_from_state(prior)
       prior_dists = {
           name: head(prior_features)
           for name, head in heads.items()}
@@ -69,7 +69,7 @@ def define_summaries(graph, config, cleanups):
       summaries += summary.image_summaries(
           prior_dists['image'], config.postprocess_fn(graph.data['image']))
     with tf.variable_scope('posterior'):
-      posterior_features = graph.cell.features_from_state(posterior)
+      posterior_features = graph.cell[0].features_from_state(posterior)
       posterior_dists = {
           name: head(posterior_features)
           for name, head in heads.items()}
@@ -81,14 +81,14 @@ def define_summaries(graph, config, cleanups):
 
   with tf.variable_scope('openloop'):
     state = tools.unroll.open_loop(
-        graph.cell, graph.embedded, graph.data['action'],
+        graph.cell[0], graph.embedded[0], graph.data['action'],
         config.open_loop_context, config.debug)
-    state_features = graph.cell.features_from_state(state)
+    state_features = graph.cell[0].features_from_state(state)
     state_dists = {name: head(state_features) for name, head in heads.items()}
     summaries += summary.dist_summaries(state_dists, graph.data, mask)
     summaries += summary.image_summaries(
         state_dists['image'], config.postprocess_fn(graph.data['image']))
-    summaries += summary.state_summaries(graph.cell, state, posterior, mask)
+    summaries += summary.state_summaries(graph.cell[0], state, posterior, mask)
     with tf.control_dependencies(plot_summaries):
       plot_summary = summary.prediction_summaries(
           state_dists, graph.data, state)

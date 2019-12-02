@@ -20,6 +20,14 @@ import tensorflow as tf
 
 
 def reward(state, graph, params):
-  features = graph.cell.features_from_state(state)
-  reward = graph.heads.reward(features).mean()
+  # print('GRAPH-------------')
+  # for k,v in graph.items():
+  #     print('KEY',k)
+  #     #print('VAL',v)
+  #TODO: Compute variance, Right now operating similarly as what Planet does 
+  state = state[0]
+
+  features = graph.cell[0].features_from_state(state)
+  reward = graph.heads[0].reward(features).mean()
+
   return tf.reduce_sum(reward, 1)

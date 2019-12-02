@@ -189,14 +189,12 @@ def train(model_fn, datasets, logdir, config):
       cleanup()
 
 
-def compute_objectives(posterior, prior, target, graph, config):
-  raw_features = graph.cell.features_from_state(posterior)
-  heads = graph.heads
+def compute_objectives(posterior, prior, target, graph, config, mdl):
+  raw_features = graph.cell[mdl].features_from_state(posterior)
+  heads = graph.heads[mdl]
   objectives = []
-  print('GRAPHHEADS',graph.heads)
   for name, scale in config.loss_scales.items():
-    print('---NAME---',name)
-    print('---NAME---',config.loss_scales[name])
+
     if config.loss_scales[name] == 0.0:
       continue
     if name in config.heads and name not in config.gradient_heads:
@@ -209,8 +207,7 @@ def compute_objectives(posterior, prior, target, graph, config):
       exclude = None
 
     if name == 'divergence':
-      loss = graph.cell.divergence_from_states(posterior, prior)
-      print('FREE NATS', config.free_nats)
+      loss = graph.cell[mdl].divergence_from_states(posterior, prior)
       if config.free_nats is not None:
         loss = tf.maximum(0.0, loss - float(config.free_nats))
       objectives.append(Objective('divergence', loss, min, include, exclude))
@@ -219,13 +216,13 @@ def compute_objectives(posterior, prior, target, graph, config):
       shape = tools.shape(graph.data['action'])
       length = tf.tile(tf.constant(shape[1])[None], [shape[0]])
       _, priors, posteriors, mask = tools.overshooting(
-          graph.cell, {}, graph.embedded, graph.data['action'], length,
+          graph.cell[mdl], {}, graph.embedded[mdl], graph.data['action'], length,
           config.overshooting_distance, posterior)
       posteriors, priors, mask = tools.nested.map(
           lambda x: x[:, :, 1:-1], (posteriors, priors, mask))
       if config.os_stop_posterior_grad:
         posteriors = tools.nested.map(tf.stop_gradient, posteriors)
-      loss = graph.cell.divergence_from_states(posteriors, priors)
+      loss = graph.cell[mdl].divergence_from_states(posteriors, priors)
       if config.free_nats is not None:
         loss = tf.maximum(0.0, loss - float(config.free_nats))
       objectives.append(Objective('overshooting', loss, min, include, exclude))
@@ -233,7 +230,7 @@ def compute_objectives(posterior, prior, target, graph, config):
     else:
       if name=='reward':
           reconstruction_loss = heads['image'](features).log_prob(target['image'])
-          full_model_loss = reconstruction_loss - tf.maximum(0.0, graph.cell.divergence_from_states(posterior,prior) - float(3.0))
+          full_model_loss = reconstruction_loss - tf.maximum(0.0, graph.cell[mdl].divergence_from_states(posterior,prior) - float(3.0))
           intrinsic_target = tf.stop_gradient(-full_model_loss)
           intrinsic_target = tf.math.multiply(intrinsic_target,1e-2)
           logprob = heads[name](features).log_prob(intrinsic_target)
@@ -242,7 +239,6 @@ def compute_objectives(posterior, prior, target, graph, config):
       objectives.append(Objective(name, logprob, max, include, exclude))
   print(objectives)
   objectives = [o._replace(value=tf.reduce_mean(o.value)) for o in objectives]
-  print(objectives)
   #assert 1==2
   return objectives
 
@@ -252,11 +248,16 @@ def apply_optimizers(objectives, trainer, config):
   processed = []
   values = [ob.value for ob in objectives]
   for ob in objectives:
+    print('OBJECTIVE DETAILS')
+    print('OBVALUE', ob.value)
+    print('OBNAME', ob.name)
+    print('OBGOAL', ob.goal)
     loss = {min: ob.value, max: -ob.value}[ob.goal]
     loss *= config.loss_scales[ob.name]
     with tf.control_dependencies(values):
       loss = tf.identity(loss)
     processed.append(ob._replace(value=loss, goal=min))
+  print('PROCESSED', processed)
   # Merge objectives that operate on the whole model to compute only one
   # backward pass and to share optimizer statistics.
   objectives = []
@@ -272,6 +273,7 @@ def apply_optimizers(objectives, trainer, config):
   summaries = []
   grad_norms = {}
   for ob in objectives:
+    print('OBJ NAME', ob.name)
     assert ob.name in list(config.loss_scales.keys()) + ['main'], ob
     assert ob.goal == min, ob
     assert ob.name in config.optimizers, ob

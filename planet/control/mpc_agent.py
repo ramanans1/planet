@@ -21,6 +21,7 @@ import tensorflow as tf
 
 from planet.tools import nested
 
+##### Initialize the MPC agent to one of the models (lets say 0), and with every begin episode, choose a different model
 
 class MPCAgent(object):
 
@@ -30,7 +31,11 @@ class MPCAgent(object):
     self._is_training = is_training
     self._should_log = should_log
     self._config = config
-    self._cell = config.cell
+    #self._cell = config.cell
+    #TODO: Replace the default model to a randomly sampled model
+    #self._modelsampler = tfd.Uniform(low=0.0,high=2.0)
+    #self._model = tf.dtypes.cast(self._modelsampler.sample(),tf.int32)
+    self._cell = config.cell[0] ### Initialize with the 0th model
     state = self._cell.zero_state(len(batch_env), tf.float32)
     var_like = lambda x: tf.get_local_variable(
         x.name.split(':')[0].replace('/', '_') + '_var',
@@ -43,6 +48,10 @@ class MPCAgent(object):
         use_resource=True)
 
   def begin_episode(self, agent_indices):
+    #self._model = tf.dtypes.cast(self._modelsampler.sample(),tf.int32)
+    #self._cell = tf.gather(self._config.cell,self._model)
+    #TODO: Replace the hardcoded model to have a sampled model
+    self._cell = self._config.cell[1]
     state = nested.map(
         lambda tensor: tf.gather(tensor, agent_indices),
         self._state)
@@ -52,11 +61,14 @@ class MPCAgent(object):
     reset_prev_action = self._prev_action.assign(
         tf.zeros_like(self._prev_action))
     with tf.control_dependencies(reset_state + (reset_prev_action,)):
-      return tf.constant('')
+        return tf.constant('')
 
   def perform(self, agent_indices, observ):
     observ = self._config.preprocess_fn(observ)
-    embedded = self._config.encoder({'image': observ[:, None]})[:, 0]
+    #TODO: Replace the encoder to have a sampled model
+    embedded = self._config.encoder[1]({'image': observ[:, None]})[:, 0]
+    #enc = tf.gather(self._config.encoder, self._model)
+    #embedded = enc({'image': observ[:, None]})[:, 0]
     state = nested.map(
         lambda tensor: tf.gather(tensor, agent_indices),
         self._state)
@@ -65,7 +77,7 @@ class MPCAgent(object):
       use_obs = tf.ones(tf.shape(agent_indices), tf.bool)[:, None]
       _, state = self._cell((embedded, prev_action, use_obs), state)
     action = self._config.planner(
-        self._cell, self._config.objective, state,
+        self._config.cell, self._config.objective, state,
         embedded.shape[1:].as_list(),
         prev_action.shape[1:].as_list())
     action = action[:, 0]
