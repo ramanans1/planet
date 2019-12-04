@@ -27,8 +27,13 @@ def cross_entropy_method(
   num_model = 2
   obs_shape, action_shape = tuple(obs_shape), tuple(action_shape)
   original_batch = tools.shape(tools.nested.flatten(state)[0])[0]
+  #original_batch = tools.shape(tools.nested.flatten(state[0])[0])[0]
   initial_state = tools.nested.map(lambda tensor: tf.tile(
       tensor, [amount] + [1] * (tensor.shape.ndims - 1)), state)
+  # for mdl in range(num_model):
+  #     initial_state.append(tools.nested.map(lambda tensor: tf.tile(
+  #         tensor, [amount] + [1] * (tensor.shape.ndims - 1)), state[mdl]))
+  #extended_batch = tools.shape(tools.nested.flatten(initial_state[0])[0])[0]
   extended_batch = tools.shape(tools.nested.flatten(initial_state)[0])[0]
   use_obs = tf.zeros([extended_batch, horizon, 1], tf.bool)
   obs = tf.zeros((extended_batch, horizon) + obs_shape)
@@ -48,7 +53,7 @@ def cross_entropy_method(
             cell[mdl], (0 * obs, action, use_obs), initial_state=initial_state)
         all_model_states.append(state)
 
-    return_ = objective_fn(all_model_states)
+    return_ = objective_fn(all_model_states, num_model)
     return_ = tf.reshape(return_, (original_batch, amount))
     # Re-fit belief to the best ones.
     _, indices = tf.nn.top_k(return_, topk, sorted=False)

@@ -31,17 +31,21 @@ class MPCAgent(object):
     self._is_training = is_training
     self._should_log = should_log
     self._config = config
+    self._num_models = 2 #TODO: Get this in as a parameter
     #self._cell = config.cell
     #TODO: Replace the default model to a randomly sampled model
     #self._modelsampler = tfd.Uniform(low=0.0,high=2.0)
     #self._model = tf.dtypes.cast(self._modelsampler.sample(),tf.int32)
-    self._cell = config.cell[0] ### Initialize with the 0th model
-    state = self._cell.zero_state(len(batch_env), tf.float32)
+    self._cell = config.cell ### Initialize with the 0th model
+    state = self._cell[0].zero_state(len(batch_env), tf.float32) #Using a type of cell to init the state
     var_like = lambda x: tf.get_local_variable(
         x.name.split(':')[0].replace('/', '_') + '_var',
         shape=x.shape,
         initializer=lambda *_, **__: tf.zeros_like(x), use_resource=True)
-    self._state = nested.map(var_like, state)
+    self._state = []
+    for mdl in range(self._num_models):
+        self._state.append(nested.map(var_like, state))
+    #self._state = nested.map(var_like, state)
     self._prev_action = tf.get_local_variable(
         'prev_action_var', shape=self._batch_env.action.shape,
         initializer=lambda *_, **__: tf.zeros_like(self._batch_env.action),
@@ -51,7 +55,7 @@ class MPCAgent(object):
     #self._model = tf.dtypes.cast(self._modelsampler.sample(),tf.int32)
     #self._cell = tf.gather(self._config.cell,self._model)
     #TODO: Replace the hardcoded model to have a sampled model
-    self._cell = self._config.cell[1]
+    #self._cell = self._config.cell[1]
     state = nested.map(
         lambda tensor: tf.gather(tensor, agent_indices),
         self._state)
@@ -66,19 +70,24 @@ class MPCAgent(object):
   def perform(self, agent_indices, observ):
     observ = self._config.preprocess_fn(observ)
     #TODO: Replace the encoder to have a sampled model
-    embedded = self._config.encoder[1]({'image': observ[:, None]})[:, 0]
+    embedded = []
+    state = []
+    for mdl in self._num_models:
+        embedded.append(self._config.encoder[mdl]({'image': observ[:, None]})[:, 0])
     #enc = tf.gather(self._config.encoder, self._model)
     #embedded = enc({'image': observ[:, None]})[:, 0]
-    state = nested.map(
-        lambda tensor: tf.gather(tensor, agent_indices),
-        self._state)
+        state.append(nested.map(lambda tensor: tf.gather(tensor, agent_indices),self._state[mdl]))
+
     prev_action = self._prev_action + 0
     with tf.control_dependencies([prev_action]):
       use_obs = tf.ones(tf.shape(agent_indices), tf.bool)[:, None]
-      _, state = self._cell((embedded, prev_action, use_obs), state)
+      next_state = []
+      for mdl in range(self._num_models):
+          _, tmpstate = self._cell((embedded[mdl], prev_action, use_obs), state[mdl])
+          next_state.append(tmpstate)
     action = self._config.planner(
-        self._config.cell, self._config.objective, state,
-        embedded.shape[1:].as_list(),
+        self._config.cell, self._config.objective, next_state,
+        embedded[0].shape[1:].as_list(),
         prev_action.shape[1:].as_list())
     action = action[:, 0]
     if self._config.exploration:

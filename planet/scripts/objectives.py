@@ -19,15 +19,27 @@ from __future__ import print_function
 import tensorflow as tf
 
 
-def reward(state, graph, params):
+def reward(state, num_model, graph, params):
   # print('GRAPH-------------')
   # for k,v in graph.items():
   #     print('KEY',k)
   #     #print('VAL',v)
-  #TODO: Compute variance, Right now operating similarly as what Planet does 
-  state = state[0]
+  #TODO: Compute variance, Right now operating similarly as what Planet does
+  features = []
+  for mdl in range(num_model):
+      features.append(graph.cell[mdl].features_from_state(state[mdl]))
+  features = tf.convert_to_tensor(features)
+  mean, variance = tf.nn.moments(features, axes=[0])
+  reward, _ = tf.nn.moments(variance, axes=[2])
+  #print(features)
+  #print(variance)
+  #assert 1==2
 
-  features = graph.cell[0].features_from_state(state)
-  reward = graph.heads[0].reward(features).mean()
+  #features = graph.cell[0].features_from_state(state[0])
+  #print(features)
+  #print(graph.heads[0].image(features).mean())
+  #reward = graph.heads[0].reward(features).mean()
+  print(reward)
+  #assert 1==2
 
   return tf.reduce_sum(reward, 1)
