@@ -231,11 +231,11 @@ def compute_objectives(posterior, prior, target, graph, config):
       objectives.append(Objective('overshooting', loss, min, include, exclude))
 
     else:
-      if name=='reward':
+      if name=='reward_int':
           reconstruction_loss = heads['image'](features).log_prob(target['image'])
           full_model_loss = reconstruction_loss - tf.maximum(0.0, graph.cell.divergence_from_states(posterior,prior) - float(3.0))
           intrinsic_target = tf.stop_gradient(-full_model_loss)
-          intrinsic_target = tf.math.multiply(intrinsic_target,1e-2)
+          intrinsic_target = tf.math.multiply(intrinsic_target,1e-3)
           logprob = heads[name](features).log_prob(intrinsic_target)
       else:
           logprob = heads[name](features).log_prob(target[name])

@@ -43,9 +43,10 @@ def define_model(data, trainer, config):
     print('KEYHEAD', key)
     name = 'head_{}'.format(key)
     kwargs = dict(create_scope_now_=True)
-    if key in data:
-      kwargs['data_shape'] = data[key].shape[2:].as_list()
-    elif key == 'action_target':
+    tmp_key = 'reward' if key=='reward_int' else key
+    if tmp_key in data:
+      kwargs['data_shape'] = data[tmp_key].shape[2:].as_list()
+    elif tmp_key == 'action_target':
       kwargs['data_shape'] = data['action'].shape[2:].as_list()
     heads[key] = tf.make_template(name, head, **kwargs)
     heads[key](dummy_features)  # Initialize weights.

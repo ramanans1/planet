@@ -104,7 +104,7 @@ def _data_processing(config, params):
 
 
 def _model_components(config, params):
-  config.gradient_heads = params.get('gradient_heads', ['image', 'reward'])
+  config.gradient_heads = params.get('gradient_heads', ['image', 'reward','reward_int'])
   network = getattr(networks, params.get('network', 'conv_ha'))
   config.activation = ACTIVATIONS[params.get('activation', 'relu')]
   config.num_layers = params.get('num_layers', 3)
@@ -175,6 +175,12 @@ def _tasks(config, params):
           config.head_network,
           stop_gradient=name not in config.gradient_heads)
       config.loss_scales[name] = 1.0
+      if name=='reward':
+          config.heads['reward_int'] = tools.bind(
+              config.head_network,
+              stop_gradient='reward_int' not in config.gradient_heads)
+          config.loss_scales['reward_int'] = 1.0
+
   config.tasks = tasks
   return config
 
@@ -186,7 +192,7 @@ def _loss_functions(config, params):
   config.loss_scales.global_divergence = params.get('global_div_scale', 0.0)
   config.loss_scales.overshooting = params.get('overshooting_scale', 0.0)
   for head in config.heads:
-    defaults = {'reward': 1.0} # Originally used to be 10.0 
+    defaults = {'reward': 10.0, 'reward_int': 10.0} # Originally used to be 10.0
     scale = defaults[head] if head in defaults else 1.0
     config.loss_scales[head] = params.get(head + '_loss_scale', scale)
   config.free_nats = params.get('free_nats', 3.0)
@@ -299,6 +305,9 @@ def _define_simulation(
     task, config, params, horizon, batch_size,prefix, objective='reward',
     rewards=False):
   planner = params.get('planner', 'cem')
+
+  objective = 'reward_int' if prefix=='train' else 'reward' #Switching between the two heads for planning
+
   # Temp Fix for random collections bug
   planner_iterations = params.get('planner_iterations',10)
   if params.get('planner_iterations',10)==0:
