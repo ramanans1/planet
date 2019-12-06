@@ -84,6 +84,10 @@ class RSSM(base.Base):
     """Extract features for the decoder network from a prior or posterior."""
     return tf.concat([state['sample'], state['belief']], -1)
 
+  def mean_features_from_state(self, state):
+    """Extract features for the decoder network from a prior or posterior."""
+    return tf.concat([state['mean'], state['belief']], -1)
+
   def divergence_from_states(self, lhs, rhs, mask=None):
     """Compute the divergence measure between two states."""
     lhs = self.dist_from_state(lhs, mask)

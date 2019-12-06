@@ -27,7 +27,7 @@ def reward(state, num_model, graph, params):
   #TODO: Compute variance, Right now operating similarly as what Planet does
   features = []
   for mdl in range(num_model):
-      features.append(graph.cell[mdl].features_from_state(state[mdl]))
+      features.append(graph.cell[mdl].mean_features_from_state(state[mdl]))
   features = tf.convert_to_tensor(features)
   mean, variance = tf.nn.moments(features, axes=[0])
   reward, _ = tf.nn.moments(variance, axes=[2])

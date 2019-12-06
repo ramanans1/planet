@@ -189,30 +189,39 @@ def train(model_fn, datasets, logdir, config):
       cleanup()
 
 
-def compute_objectives(posterior, prior, target, graph, config, mdl):
-  raw_features = graph.cell[mdl].features_from_state(posterior)
-  heads = graph.heads[mdl]
+def compute_objectives(posterior, prior, target, graph, config):
+  heads = graph.heads
   objectives = []
+
   for name, scale in config.loss_scales.items():
+    features = []
 
     if config.loss_scales[name] == 0.0:
       continue
     if name in config.heads and name not in config.gradient_heads:
-      features = tf.stop_gradient(raw_features)
+      for mdl in range(len(posterior)):
+          raw_features = graph.cell[mdl].features_from_state(posterior[mdl])
+          features.append(tf.stop_gradient(raw_features))
       include = r'.*/head_{}/.*'.format(name)
       exclude = None
     else:
-      features = raw_features
+      for mdl in range(len(posterior)):
+          raw_features = graph.cell[mdl].features_from_state(posterior[mdl])
+          features.append(raw_features)
       include = r'.*'
       exclude = None
 
     if name == 'divergence':
-      loss = graph.cell[mdl].divergence_from_states(posterior, prior)
+      loss = graph.cell[0].divergence_from_states(posterior[0], prior[0])
+      for mdl in range(1,len(posterior)):
+          loss = tf.math.add(loss,graph.cell[mdl].divergence_from_states(posterior[mdl], prior[mdl]))
+      loss = tf.math.scalar_mul((1/len(posterior)),loss)
       if config.free_nats is not None:
         loss = tf.maximum(0.0, loss - float(config.free_nats))
       objectives.append(Objective('divergence', loss, min, include, exclude))
 
     elif name == 'overshooting':
+      assert name!='overshooting' #Didn't change overshooting to include ensembles
       shape = tools.shape(graph.data['action'])
       length = tf.tile(tf.constant(shape[1])[None], [shape[0]])
       _, priors, posteriors, mask = tools.overshooting(
@@ -228,14 +237,11 @@ def compute_objectives(posterior, prior, target, graph, config, mdl):
       objectives.append(Objective('overshooting', loss, min, include, exclude))
 
     else:
-      if name=='reward':
-          reconstruction_loss = heads['image'](features).log_prob(target['image'])
-          full_model_loss = reconstruction_loss - tf.maximum(0.0, graph.cell[mdl].divergence_from_states(posterior,prior) - float(3.0))
-          intrinsic_target = tf.stop_gradient(-full_model_loss)
-          intrinsic_target = tf.math.multiply(intrinsic_target,1e-2)
-          logprob = heads[name](features).log_prob(intrinsic_target)
-      else:
-          logprob = heads[name](features).log_prob(target[name])
+
+      logprob = heads[name](features[0]).log_prob(target[name])
+      for mdl in range(1,len(posterior)):
+          logprob = tf.math.add(logprob,heads[name](features[mdl]).log_prob(target[name]))
+      logprob = tf.math.scalar_mul((1/len(posterior)),logprob)
       objectives.append(Objective(name, logprob, max, include, exclude))
   print(objectives)
   objectives = [o._replace(value=tf.reduce_mean(o.value)) for o in objectives]

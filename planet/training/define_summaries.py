@@ -28,8 +28,8 @@ def define_summaries(graph, config, cleanups):
   summaries = []
   plot_summaries = []  # Control dependencies for non thread-safe matplot.
   length = graph.data['length']
-  mask = tf.range(graph.embedded[0].shape[1].value)[None, :] < length[:, None]
-  heads = graph.heads[0].copy()
+  mask = tf.range(graph.embedded.shape[1].value)[None, :] < length[:, None]
+  heads = graph.heads.copy()
   last_time = tf.Variable(lambda: tf.timestamp(), trainable=False)
   last_step = tf.Variable(lambda: 0.0, trainable=False, dtype=tf.float64)
 
@@ -38,13 +38,13 @@ def define_summaries(graph, config, cleanups):
     mean = tf.clip_by_value(mean, 0.0, 1.0)
     return tfd.Independent(tfd.Normal(mean, 1.0), len(dist.event_shape))
   heads.unlock()
-  heads['image'] = lambda features: transform(graph.heads[0]['image'](features))
+  heads['image'] = lambda features: transform(graph.heads['image'](features))
   heads.lock()
 
   with tf.variable_scope('general'):
     summaries += summary.data_summaries(graph.data, config.postprocess_fn)
     summaries += summary.dataset_summaries(config.train_dir)
-    summaries += summary.objective_summaries(graph.objectives[0])
+    summaries += summary.objective_summaries(graph.objectives)
     summaries.append(tf.summary.scalar('step', graph.step))
     new_time, new_step = tf.timestamp(), tf.cast(graph.global_step, tf.float64)
     delta_time, delta_step = new_time - last_time, new_step - last_step
@@ -58,7 +58,7 @@ def define_summaries(graph, config, cleanups):
 
   with tf.variable_scope('closedloop'):
     prior, posterior = tools.unroll.closed_loop(
-        graph.cell[0], graph.embedded[0], graph.data['action'], config.debug)
+        graph.cell[0], graph.embedded, graph.data['action'], config.debug)
     summaries += summary.state_summaries(graph.cell[0], prior, posterior, mask)
     with tf.variable_scope('prior'):
       prior_features = graph.cell[0].features_from_state(prior)
@@ -81,7 +81,7 @@ def define_summaries(graph, config, cleanups):
 
   with tf.variable_scope('openloop'):
     state = tools.unroll.open_loop(
-        graph.cell[0], graph.embedded[0], graph.data['action'],
+        graph.cell[0], graph.embedded, graph.data['action'],
         config.open_loop_context, config.debug)
     state_features = graph.cell[0].features_from_state(state)
     state_dists = {name: head(state_features) for name, head in heads.items()}
