@@ -17,14 +17,15 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+import numpy as np
 
 
-def reward(state, num_model, graph, params):
+def reward_int(state, num_model, graph, params):
   # print('GRAPH-------------')
   # for k,v in graph.items():
   #     print('KEY',k)
   #     #print('VAL',v)
-  #TODO: Compute variance, Right now operating similarly as what Planet does
+
   features = []
   for mdl in range(num_model):
       features.append(graph.cell[mdl].mean_features_from_state(state[mdl]))
@@ -43,3 +44,10 @@ def reward(state, num_model, graph, params):
   #assert 1==2
 
   return tf.reduce_sum(reward, 1)
+
+def reward(state, num_model, graph, params):
+    #choose_model = np.random.randint(num_model)
+    features = graph.cell[0].features_from_state(state[0])
+    reward = graph.heads.reward(features).mean()
+
+    return tf.reduce_sum(reward,1)

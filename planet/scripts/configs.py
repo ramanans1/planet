@@ -186,7 +186,7 @@ def _loss_functions(config, params):
   config.loss_scales.global_divergence = params.get('global_div_scale', 0.0)
   config.loss_scales.overshooting = params.get('overshooting_scale', 0.0)
   for head in config.heads:
-    defaults = {'reward': 1.0} # Originally used to be 10.0 
+    defaults = {'reward': 1.0} # Originally used to be 10.0
     scale = defaults[head] if head in defaults else 1.0
     config.loss_scales[head] = params.get(head + '_loss_scale', scale)
   config.free_nats = params.get('free_nats', 3.0)
@@ -299,6 +299,7 @@ def _define_simulation(
     task, config, params, horizon, batch_size,prefix, objective='reward',
     rewards=False):
   planner = params.get('planner', 'cem')
+  objective = 'reward_int' if prefix=='train' else 'reward' #Switch between two different objectives for train and test phase 
   # Temp Fix for random collections bug
   planner_iterations = params.get('planner_iterations',10)
   if params.get('planner_iterations',10)==0:
