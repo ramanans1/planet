@@ -32,7 +32,7 @@ def define_model(data, trainer, config):
   step = trainer.step
   global_step = trainer.global_step
   phase = trainer.phase
-  num_models = 2
+  num_models = 5
 
 #Disagreement additions
 

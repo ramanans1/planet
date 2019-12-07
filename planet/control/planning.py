@@ -24,7 +24,7 @@ from planet import tools
 def cross_entropy_method(
     cell, objective_fn, state, obs_shape, action_shape, horizon, graph,
     amount=1000, topk=100, iterations=10, min_action=-1, max_action=1):
-  num_model = 2
+  num_model = 5
   obs_shape, action_shape = tuple(obs_shape), tuple(action_shape)
   original_batch = tools.shape(tools.nested.flatten(state[0])[0])[0]
   initial_state = []

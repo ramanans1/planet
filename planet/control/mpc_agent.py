@@ -31,7 +31,7 @@ class MPCAgent(object):
     self._is_training = is_training
     self._should_log = should_log
     self._config = config
-    self._num_models = 2 #TODO: Get this in as a parameter
+    self._num_models = 5 #TODO: Get this in as a parameter
     #self._cell = config.cell
     #self._modelsampler = tfd.Uniform(low=0.0,high=2.0)
     #self._model = tf.dtypes.cast(self._modelsampler.sample(),tf.int32)
