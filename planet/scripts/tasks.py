@@ -74,6 +74,29 @@ def cheetah_run(config, params):
       _dm_control_env, action_repeat, max_length, 'cheetah', 'run', params)
   return Task('cheetah_run', env_ctor, max_length, state_components)
 
+def cheetah_run_back(config, params):
+  action_repeat = params.get('action_repeat', 4)
+  max_length = 1000 // action_repeat
+  state_components = ['reward', 'position', 'velocity']
+  env_ctor = tools.bind(
+      _dm_control_env, action_repeat, max_length, 'cheetah', 'run_back', params)
+  return Task('cheetah_run_back', env_ctor, max_length, state_components)
+
+def cheetah_flip_forward(config, params):
+  action_repeat = params.get('action_repeat', 4)
+  max_length = 1000 // action_repeat
+  state_components = ['reward', 'position', 'velocity']
+  env_ctor = tools.bind(
+      _dm_control_env, action_repeat, max_length, 'cheetah', 'flip_forward', params)
+  return Task('cheetah_flip_forward', env_ctor, max_length, state_components)
+
+def cheetah_flip_backward(config, params):
+  action_repeat = params.get('action_repeat', 4)
+  max_length = 1000 // action_repeat
+  state_components = ['reward', 'position', 'velocity']
+  env_ctor = tools.bind(
+      _dm_control_env, action_repeat, max_length, 'cheetah', 'flip_backward', params)
+  return Task('cheetah_flip_backward', env_ctor, max_length, state_components)
 
 def cup_catch(config, params):
   action_repeat = params.get('action_repeat', 4)
