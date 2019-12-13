@@ -27,5 +27,11 @@ def reward(state, graph, params):
 
 def reward_int(state, graph, params):
   features = graph.cell.features_from_state(state)
-  reward = graph.heads.reward_int(features).mean()
+  if graph.config.curious_combo:
+      intrinsic = graph.heads.reward_int(features).mean()
+      extrinsic = graph.heads.reward(features).mean()
+      reward = tf.math.add(tf.math.scalar_mul(1.0,extrinsic), tf.math.scalar_mul(0.01,intrinsic))
+  else:
+      reward = graph.heads.reward_int(features).mean()
+
   return tf.reduce_sum(reward, 1)

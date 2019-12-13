@@ -223,6 +223,7 @@ def _training_schedule(config, params):
   config.test_dir = os.path.join(params.logdir, 'test_episodes')
   config.curious_run = params.get('curious_run',False)
   config.curious_dir = params.get('curious_dir', None)
+  config.curious_combo = params.get('curious_combo', False)
 
   if config.curious_run==True:
       assert config.curious_dir != None
@@ -287,6 +288,7 @@ def _active_collection(collects, defaults, config, params):
       sim.steps_until = int(collect.until)
       sim.curious_dir = config.curious_dir if collect.prefix=='train' else None
       sim.is_curious = config.curious_run
+      sim.curious_combo = config.curious_combo
       sim.exploration = tools.AttrDict(
           scale=collect.action_noise,
           schedule=tools.bind(
