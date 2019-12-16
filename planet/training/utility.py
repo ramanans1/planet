@@ -215,7 +215,7 @@ def compute_objectives(posterior, prior, target, graph, config):
     elif 'one_step_model' in name:
 
       mdl = int(name[-1])
-      pred_embeddings = graph.one_step_models[mdl](prior['rnn_state'],graph.data['action'])
+      pred_embeddings = graph.one_step_models[mdl](prior['rnn_state'],graph.data['action']) #Prior and Posterior rnn states are the same 
       loss = tf.reduce_mean((pred_embeddings - tf.stop_gradient(graph.embedded)) ** 2, -1)
       objectives.append(Objective('one_step_model_'+str(mdl), loss, min, include, exclude))
 

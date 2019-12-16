@@ -40,8 +40,8 @@ import functools
 import os
 import sys
 
-# os.environ["MUJOCO_GL"] = "osmesa"
-# os.environ["PYOPENGL_PLATFORM"] = "osmesa"
+os.environ["MUJOCO_GL"] = "osmesa"
+os.environ["PYOPENGL_PLATFORM"] = "osmesa"
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))

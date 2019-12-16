@@ -42,28 +42,22 @@ def define_model(data, trainer, config):
   heads = tools.AttrDict(_unlocked=True)
   dummy_zero = cell.zero_state(1, tf.float32)
   dummy_features = cell.features_from_state(dummy_zero)
-  dummy_action = tf.zeros([1, 6], tf.float32)
 
   for key, head in config.heads.items():
-    if key!='one_step_model':
-        name = 'head_{}'.format(key)
-        kwargs = dict(create_scope_now_=True)
-        if key in data:
-          print('KEY',key)
-          print(data[key].shape)
-          print(data[key].shape[2:])
-          print(data[key].shape[2:].as_list())
-          kwargs['data_shape'] = data[key].shape[2:].as_list()
-        elif key == 'action_target':
-          kwargs['data_shape'] = data['action'].shape[2:].as_list()
-        heads[key] = tf.make_template(name, head, **kwargs)
-        heads[key](dummy_features)  # Initialize weights.
+    name = 'head_{}'.format(key)
+    kwargs = dict(create_scope_now_=True)
+    if key in data:
+      kwargs['data_shape'] = data[key].shape[2:].as_list()
+    elif key == 'action_target':
+      kwargs['data_shape'] = data['action'].shape[2:].as_list()
+    heads[key] = tf.make_template(name, head, **kwargs)
+    heads[key](dummy_features)  # Initialize weights.
 
   for mdl in range(config.num_models):
-      with tf.variable_scope('one_step_model_'+str(mdl)):
-          name = 'one_step_model_'+str(mdl)
-          kwargs = dict(create_scope_now_=True)
-          one_step_models.append(tf.make_template(name, config.one_step_model, **kwargs))
+    with tf.variable_scope('one_step_model_'+str(mdl)):
+      name = 'one_step_model_'+str(mdl)
+      kwargs = dict(create_scope_now_=True)
+      one_step_models.append(tf.make_template(name, config.one_step_model, **kwargs))
 
   # Apply and optimize model.
   embedded = encoder(data)

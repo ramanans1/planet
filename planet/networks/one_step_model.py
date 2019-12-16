@@ -25,7 +25,7 @@ from planet import tools
 
 
 def one_step_model(state, prev_action):
-    """Create a model returning unnormalized MSE distribution."""
+    
     data_shape=[1024]
     num_layers=1
     activation=tf.nn.relu
