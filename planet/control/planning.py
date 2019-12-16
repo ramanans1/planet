@@ -43,7 +43,7 @@ def cross_entropy_method(
         action, (extended_batch, horizon) + action_shape)
     (_, state), _ = tf.nn.dynamic_rnn(
         cell, (0 * obs, action, use_obs), initial_state=initial_state)
-    return_ = objective_fn(state)
+    return_ = objective_fn(state, action=action)
     return_ = tf.reshape(return_, (original_batch, amount))
     # Re-fit belief to the best ones.
     _, indices = tf.nn.top_k(return_, topk, sorted=False)

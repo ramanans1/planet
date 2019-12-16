@@ -303,6 +303,7 @@ def _define_simulation(
     task, config, params, horizon, batch_size,prefix, objective='reward',
     rewards=False):
   planner = params.get('planner', 'cem')
+  objective = 'reward_int' if prefix=='train' else 'reward'
   # Temp Fix for random collections bug
   planner_iterations = params.get('planner_iterations',10)
   if params.get('planner_iterations',10)==0:

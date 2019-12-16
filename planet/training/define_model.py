@@ -111,6 +111,5 @@ def define_model(data, trainer, config):
       grad_norms, step, config.print_metrics_every, 'grad_norms'))
   with tf.control_dependencies(dependencies):
     score = tf.identity(score)
-  print('model compiles???')
-  assert 1==2
+
   return score, summaries, cleanups

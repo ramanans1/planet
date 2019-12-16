@@ -16,22 +16,27 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
+from tensorflow_probability import distributions as tfd
+
+from planet import tools
 
 
-def reward(state, graph, params, action=None):
-  features = graph.cell.features_from_state(state)
-  reward = graph.heads.reward(features).mean()
-  return tf.reduce_sum(reward, 1)
+def one_step_model(state, prev_action):
+    """Create a model returning unnormalized MSE distribution."""
+    data_shape=[1024]
+    num_layers=1
+    activation=tf.nn.relu
+    units=1024
+    state = tf.stop_gradient(state)
+    inputs = tf.concat([state, prev_action], -1)
+    for _ in range(num_layers):
+        hidden = tf.layers.dense(inputs, units, activation )
+        inputs = tf.concat([hidden, prev_action], -1)
 
-def reward_int(state, action, graph, params):
-  pred_embeddings = []
-  
-  for mdl in range(graph.config.num_models):
-      pred_embeddings.append(graph.one_step_models[mdl](state['rnn_state'],action))
+    mean = tf.layers.dense(inputs, int(np.prod(data_shape)), None)
+    mean = tf.reshape(mean, tools.shape(state)[:-1] + data_shape)
 
-  predictions = tf.convert_to_tensor(pred_embeddings)
-  mean, variance = tf.nn.moments(predictions, axes=[0])
-  reward, _ = tf.nn.moments(variance, axes=[2])
-
-  return tf.reduce_sum(reward, 1)
+    return mean
