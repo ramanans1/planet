@@ -33,29 +33,48 @@ def define_model(data, trainer, config):
   global_step = trainer.global_step
   phase = trainer.phase
 
+  one_step_models = []
+
   # Instantiate network blocks.
   cell = config.cell()
   kwargs = dict(create_scope_now_=True)
   encoder = tf.make_template('encoder', config.encoder, **kwargs)
   heads = tools.AttrDict(_unlocked=True)
-  dummy_features = cell.features_from_state(cell.zero_state(1, tf.float32))
+  dummy_zero = cell.zero_state(1, tf.float32)
+  dummy_features = cell.features_from_state(dummy_zero)
+  dummy_action = tf.zeros([1, 6], tf.float32)
+
   for key, head in config.heads.items():
-    name = 'head_{}'.format(key)
-    kwargs = dict(create_scope_now_=True)
-    if key in data:
-      kwargs['data_shape'] = data[key].shape[2:].as_list()
-    elif key == 'action_target':
-      kwargs['data_shape'] = data['action'].shape[2:].as_list()
-    heads[key] = tf.make_template(name, head, **kwargs)
-    heads[key](dummy_features)  # Initialize weights.
+    if key!='one_step_model':
+        name = 'head_{}'.format(key)
+        kwargs = dict(create_scope_now_=True)
+        if key in data:
+          print('KEY',key)
+          print(data[key].shape)
+          print(data[key].shape[2:])
+          print(data[key].shape[2:].as_list())
+          kwargs['data_shape'] = data[key].shape[2:].as_list()
+        elif key == 'action_target':
+          kwargs['data_shape'] = data['action'].shape[2:].as_list()
+        heads[key] = tf.make_template(name, head, **kwargs)
+        heads[key](dummy_features)  # Initialize weights.
+
+  for mdl in range(config.num_models):
+      with tf.variable_scope('one_step_model_'+str(mdl)):
+          name = 'one_step_model_'+str(mdl)
+          kwargs = dict(create_scope_now_=True)
+          one_step_models.append(tf.make_template(name, config.one_step_model, **kwargs))
 
   # Apply and optimize model.
   embedded = encoder(data)
+
   with tf.control_dependencies(dependencies):
     embedded = tf.identity(embedded)
+
   graph = tools.AttrDict(locals())
   prior, posterior = tools.unroll.closed_loop(
       cell, embedded, data['action'], config.debug)
+
   objectives = utility.compute_objectives(
       posterior, prior, data, graph, config)
   summaries, grad_norms = utility.apply_optimizers(
@@ -92,4 +111,6 @@ def define_model(data, trainer, config):
       grad_norms, step, config.print_metrics_every, 'grad_norms'))
   with tf.control_dependencies(dependencies):
     score = tf.identity(score)
+  print('model compiles???')
+  assert 1==2
   return score, summaries, cleanups

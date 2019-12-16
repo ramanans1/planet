@@ -193,6 +193,7 @@ def compute_objectives(posterior, prior, target, graph, config):
   raw_features = graph.cell.features_from_state(posterior)
   heads = graph.heads
   objectives = []
+
   for name, scale in config.loss_scales.items():
     if config.loss_scales[name] == 0.0:
       continue
@@ -210,6 +211,13 @@ def compute_objectives(posterior, prior, target, graph, config):
       if config.free_nats is not None:
         loss = tf.maximum(0.0, loss - float(config.free_nats))
       objectives.append(Objective('divergence', loss, min, include, exclude))
+
+    elif 'one_step_model' in name:
+
+      mdl = int(name[-1])
+      pred_embeddings = graph.one_step_models[mdl](prior['rnn_state'],graph.data['action'])
+      loss = tf.reduce_mean((pred_embeddings - tf.stop_gradient(graph.embedded)) ** 2, -1)
+      objectives.append(Objective('one_step_model_'+str(mdl), loss, min, include, exclude))
 
     elif name == 'overshooting':
       shape = tools.shape(graph.data['action'])

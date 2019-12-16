@@ -114,6 +114,8 @@ def _model_components(config, params):
       num_layers=config.num_layers,
       units=config.num_units,
       activation=config.activation)
+  config.one_step_model = getattr(networks, 'one_step_model').one_step_model
+  config.num_models = params.get('num_models', 5)
   config.encoder = network.encoder
   config.decoder = network.decoder
   config.heads = tools.AttrDict(_unlocked=True)
@@ -185,6 +187,8 @@ def _loss_functions(config, params):
   config.loss_scales.divergence = params.get('divergence_scale', 1.0)
   config.loss_scales.global_divergence = params.get('global_div_scale', 0.0)
   config.loss_scales.overshooting = params.get('overshooting_scale', 0.0)
+  for mdl in range(config.num_models):
+      config.loss_scales['one_step_model_'+str(mdl)] = params.get('one_step_model_scale',1.0)
   for head in config.heads:
     defaults = {'reward': 10.0}
     scale = defaults[head] if head in defaults else 1.0
