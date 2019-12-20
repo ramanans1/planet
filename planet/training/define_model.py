@@ -69,7 +69,7 @@ def define_model(data, trainer, config):
 
   bagging_size = int(0.8*config.batch_shape[0])
   sample_with_replacement = tf.random.uniform([config.num_models, bagging_size], minval=0, maxval=config.batch_shape[0],
-                                                dtype= tf.dtypes.int32)
+                                                dtype= tf.int32)
 
   for mdl in range(config.num_models):
     with tf.variable_scope('model_no'+str(mdl)):
