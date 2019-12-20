@@ -237,7 +237,6 @@ def compute_objectives(posterior, prior, target, graph, config):
       objectives.append(Objective('overshooting', loss, min, include, exclude))
 
     else:
-
       logprob = heads[name](features[0]).log_prob(target[name])
       for mdl in range(1,len(posterior)):
           logprob = tf.math.add(logprob,heads[name](features[mdl]).log_prob(target[name]))
