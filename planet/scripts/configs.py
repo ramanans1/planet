@@ -175,6 +175,12 @@ def _tasks(config, params):
           config.head_network,
           stop_gradient=name not in config.gradient_heads)
       config.loss_scales[name] = 1.0
+      if name =='reward':
+          config.heads['reward_nt'] = tools.bind(
+              config.head_network,
+              stop_gradient=name not in config.gradient_heads)
+          config.loss_scales['reward_nt'] = 1.0
+
   config.tasks = tasks
   return config
 
@@ -186,7 +192,7 @@ def _loss_functions(config, params):
   config.loss_scales.global_divergence = params.get('global_div_scale', 0.0)
   config.loss_scales.overshooting = params.get('overshooting_scale', 0.0)
   for head in config.heads:
-    defaults = {'reward': 10.0}
+    defaults = {'reward': 10.0, 'reward_nt': 10.0}
     scale = defaults[head] if head in defaults else 1.0
     config.loss_scales[head] = params.get(head + '_loss_scale', scale)
   config.free_nats = params.get('free_nats', 3.0)
@@ -199,6 +205,7 @@ def _loss_functions(config, params):
       # schedule=tools.bind(tools.schedule.linear, ramp=0),
       learning_rate=params.get('main_learning_rate', 1e-3),
       clipping=params.get('main_gradient_clipping', 1000.0))
+  config.optimizers.reward_nt = config.optimizers.main
   return config
 
 
@@ -300,6 +307,8 @@ def _define_simulation(
     rewards=False):
   planner = params.get('planner', 'cem')
   # Temp Fix for random collections bug
+  objective = 'reward' if task.name == 'cheetah_run' else 'reward_nt'
+
   planner_iterations = params.get('planner_iterations',10)
   if params.get('planner_iterations',10)==0:
       if prefix=='train':

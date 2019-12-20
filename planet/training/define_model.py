@@ -44,6 +44,8 @@ def define_model(data, trainer, config):
     kwargs = dict(create_scope_now_=True)
     if key in data:
       kwargs['data_shape'] = data[key].shape[2:].as_list()
+    elif 'reward' in key:
+      kwargs['data_shape'] = data['reward'].shape[2:].as_list()
     elif key == 'action_target':
       kwargs['data_shape'] = data['action'].shape[2:].as_list()
     heads[key] = tf.make_template(name, head, **kwargs)

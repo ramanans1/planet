@@ -443,8 +443,9 @@ class CollectGymDataset(object):
   episode length is one more than the number of decision points.
   """
 
-  def __init__(self, env, outdir, is_random=False, logdir=None, is_curious=False):
+  def __init__(self, env, outdir, name, is_random=False, logdir=None, is_curious=False):
     self._env = env
+    self._name = name[name.find('-')+1:]
     self._outdir = outdir and os.path.expanduser(outdir)
     self._episode = None
     self._istest = "test" in outdir
@@ -456,7 +457,7 @@ class CollectGymDataset(object):
         self._rolloutspath = os.path.join(logdir,'*.npz')
         self._rolloutlist = sorted([f for f in glob.glob(self._rolloutspath)])
         #self._maxepisodes = len(self._rolloutlist) - 1
-        self._maxepisodes = 1120 
+        self._maxepisodes = 1120
 
   def __getattr__(self, name):
     return getattr(self._env, name)
@@ -492,6 +493,7 @@ class CollectGymDataset(object):
         transition = self._process_observ(observ).copy()
         transition['action'] = action
         transition['reward'] = reward
+        transition['name'] = self._name
     self._episode.append(transition)
     if done:
       episode = self._get_episode()
@@ -516,6 +518,7 @@ class CollectGymDataset(object):
         transition = self._process_observ(observ).copy()
         transition['action'] = np.zeros_like(self.action_space.low)
         transition['reward'] = 0.0
+        transition['name'] = self._name
     self._episode = [transition]
     return observ
 

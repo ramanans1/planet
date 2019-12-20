@@ -189,46 +189,79 @@ def train(model_fn, datasets, logdir, config):
       cleanup()
 
 
-def compute_objectives(posterior, prior, target, graph, config):
-  raw_features = graph.cell.features_from_state(posterior)
+def compute_objectives(full_posterior, full_prior, target, graph, config):
+  full_raw_features = graph.cell.features_from_state(full_posterior)
   heads = graph.heads
   objectives = []
   for name, scale in config.loss_scales.items():
-    if config.loss_scales[name] == 0.0:
-      continue
-    if name in config.heads and name not in config.gradient_heads:
-      features = tf.stop_gradient(raw_features)
-      include = r'.*/head_{}/.*'.format(name)
-      exclude = None
+    if name != 'reward_nt':
+        task_idx = tf.squeeze(tf.where(tf.equal(target['name'][:,0],'cheetah_run')))
+        posterior = {}
+        prior = {}
+        #assert 1==2
+        for k,v in full_posterior.items():
+            posterior[k] = tf.gather(full_posterior[k], task_idx)
+            prior[k] = tf.gather(full_prior[k], task_idx)
+            posterior[k] = tf.reshape(posterior[k], [-1] + tools.shape(full_posterior[k])[1:])
+            prior[k] = tf.reshape(prior[k], [-1] + tools.shape(full_prior[k])[1:])
+
+        raw_features = tf.gather(full_raw_features, task_idx)
+        raw_features = tf.reshape(raw_features, [-1] + tools.shape(full_raw_features)[1:])
+
+        if config.loss_scales[name] == 0.0:
+          continue
+        if name in config.heads and name not in config.gradient_heads:
+          features = tf.stop_gradient(raw_features)
+          include = r'.*/head_{}/.*'.format(name)
+          exclude = None
+        else:
+          features = raw_features
+          include = r'.*'
+          exclude = None
+
+        if name == 'divergence':
+          loss = graph.cell.divergence_from_states(posterior, prior)
+          if config.free_nats is not None:
+            loss = tf.maximum(0.0, loss - float(config.free_nats))
+          objectives.append(Objective('divergence', loss, min, include, exclude))
+
+        elif name == 'overshooting':
+          shape = tools.shape(graph.data['action'])
+          length = tf.tile(tf.constant(shape[1])[None], [shape[0]])
+          _, priors, posteriors, mask = tools.overshooting(
+              graph.cell, {}, graph.embedded, graph.data['action'], length,
+              config.overshooting_distance, posterior)
+          posteriors, priors, mask = tools.nested.map(
+              lambda x: x[:, :, 1:-1], (posteriors, priors, mask))
+          if config.os_stop_posterior_grad:
+            posteriors = tools.nested.map(tf.stop_gradient, posteriors)
+          loss = graph.cell.divergence_from_states(posteriors, priors)
+          if config.free_nats is not None:
+            loss = tf.maximum(0.0, loss - float(config.free_nats))
+          objectives.append(Objective('overshooting', loss, min, include, exclude))
+
+        else:
+          new_target = tf.gather(target[name],task_idx)
+          new_target = tf.reshape(new_target, [-1] + tools.shape(target[name])[1:])
+          logprob = heads[name](features).log_prob(new_target)
+          objectives.append(Objective(name, logprob, max, include, exclude))
+
     else:
-      features = raw_features
-      include = r'.*'
-      exclude = None
-
-    if name == 'divergence':
-      loss = graph.cell.divergence_from_states(posterior, prior)
-      if config.free_nats is not None:
-        loss = tf.maximum(0.0, loss - float(config.free_nats))
-      objectives.append(Objective('divergence', loss, min, include, exclude))
-
-    elif name == 'overshooting':
-      shape = tools.shape(graph.data['action'])
-      length = tf.tile(tf.constant(shape[1])[None], [shape[0]])
-      _, priors, posteriors, mask = tools.overshooting(
-          graph.cell, {}, graph.embedded, graph.data['action'], length,
-          config.overshooting_distance, posterior)
-      posteriors, priors, mask = tools.nested.map(
-          lambda x: x[:, :, 1:-1], (posteriors, priors, mask))
-      if config.os_stop_posterior_grad:
-        posteriors = tools.nested.map(tf.stop_gradient, posteriors)
-      loss = graph.cell.divergence_from_states(posteriors, priors)
-      if config.free_nats is not None:
-        loss = tf.maximum(0.0, loss - float(config.free_nats))
-      objectives.append(Objective('overshooting', loss, min, include, exclude))
-
-    else:
-      logprob = heads[name](features).log_prob(target[name])
-      objectives.append(Objective(name, logprob, max, include, exclude))
+        task_idx = tf.squeeze(tf.where(tf.not_equal(target['name'][:,0],'cheetah_run')))
+        raw_features = tf.gather(full_raw_features, task_idx)
+        raw_features = tf.reshape(raw_features, [-1] + tools.shape(full_raw_features)[1:])
+        if name in config.heads and name not in config.gradient_heads:
+          features = tf.stop_gradient(raw_features)
+          include = r'.*/head_{}/.*'.format(name)
+          exclude = None
+        else:
+          features = raw_features
+          include = r'.*'
+          exclude = None
+        new_target = tf.gather(target['reward'], task_idx)
+        new_target = tf.reshape(new_target, [-1] + tools.shape(target['reward'])[1:])
+        logprob = heads[name](features).log_prob(new_target)
+        objectives.append(Objective(name, logprob, max, include, exclude))
 
   objectives = [o._replace(value=tf.reduce_mean(o.value)) for o in objectives]
   return objectives
@@ -288,7 +321,7 @@ def simulate_episodes(
     #print("------ENV--",env)
     #assert 1==2
     if params.save_episode_dir:
-      env = control.wrappers.CollectGymDataset(env, params.save_episode_dir, logdir=params.curious_dir, is_curious=params.is_curious)
+      env = control.wrappers.CollectGymDataset(env, params.save_episode_dir, name=params.task.name, logdir=params.curious_dir, is_curious=params.is_curious)
     env = control.wrappers.ConcatObservation(env, ['image'])
     return env
   #print("---------------SIMULATE EPISODES------------------")
@@ -349,4 +382,4 @@ def collect_initial_episodes(config):
       existing[outdir] = 0
       env_ctor = params.task.env_ctor
       print('Collecting {} initial episodes ({}).'.format(remaining, name))
-      control.random_episodes(env_ctor, remaining, outdir)
+      control.random_episodes(env_ctor, remaining, outdir, name)
