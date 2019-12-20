@@ -237,9 +237,11 @@ def compute_objectives(posterior, prior, target, graph, config):
       objectives.append(Objective('overshooting', loss, min, include, exclude))
 
     else:
-      logprob = heads[name](features[0]).log_prob(target[name])
+      bootstrap_target = tf.gather(target[name], graph.sample_with_replacement[0,:], axis=0)
+      logprob = heads[name](features[0]).log_prob(bootstrap_target)
       for mdl in range(1,len(posterior)):
-          logprob = tf.math.add(logprob,heads[name](features[mdl]).log_prob(target[name]))
+          bootstrap_target = tf.gather(target[name], graph.sample_with_replacement[mdl,:], axis=0)
+          logprob = tf.math.add(logprob,heads[name](features[mdl]).log_prob(bootstrap_target))
       logprob = tf.math.scalar_mul((1/len(posterior)),logprob)
       objectives.append(Objective(name, logprob, max, include, exclude))
   print(objectives)
@@ -321,7 +323,8 @@ def simulate_episodes(
       objective=bind_or_none(params.objective, graph=graph),
       exploration=params.exploration,
       preprocess_fn=config.preprocess_fn,
-      postprocess_fn=config.postprocess_fn)
+      postprocess_fn=config.postprocess_fn,
+      num_models=config.num_models)
   params = params.copy()
   with params.unlocked:
     params.update(agent_config)

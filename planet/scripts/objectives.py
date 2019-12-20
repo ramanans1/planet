@@ -20,33 +20,19 @@ import tensorflow as tf
 import numpy as np
 
 
-def reward_int(state, num_model, graph, params):
-  # print('GRAPH-------------')
-  # for k,v in graph.items():
-  #     print('KEY',k)
-  #     #print('VAL',v)
-
+def reward_int(state, graph, params):
+ 
   features = []
-  for mdl in range(num_model):
+  for mdl in range(graph.config.num_models):
       features.append(graph.cell[mdl].mean_features_from_state(state[mdl]))
   features = tf.convert_to_tensor(features)
   mean, variance = tf.nn.moments(features, axes=[0])
   reward, _ = tf.nn.moments(variance, axes=[2])
-  #print(features)
-  #print(variance)
-  #assert 1==2
-
-  #features = graph.cell[0].features_from_state(state[0])
-  #print(features)
-  #print(graph.heads[0].image(features).mean())
-  #reward = graph.heads[0].reward(features).mean()
-  print(reward)
-  #assert 1==2
 
   return tf.reduce_sum(reward, 1)
 
-def reward(state, num_model, graph, params):
-    #choose_model = np.random.randint(num_model)
+def reward(state, graph, params):
+
     features = graph.cell[0].features_from_state(state[0])
     reward = graph.heads.reward(features).mean()
 

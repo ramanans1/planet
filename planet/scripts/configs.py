@@ -109,6 +109,7 @@ def _model_components(config, params):
   config.activation = ACTIVATIONS[params.get('activation', 'relu')]
   config.num_layers = params.get('num_layers', 3)
   config.num_units = params.get('num_units', 300)
+  config.num_models = params.get('num_models', 5)
   config.head_network = tools.bind(
       networks.feed_forward,
       num_layers=config.num_layers,
@@ -154,9 +155,7 @@ def _model_components(config, params):
 def _tasks(config, params):
   tasks = params.get('tasks', ['cheetah_run'])
   tasks = [getattr(tasks_lib, name)(config, params) for name in tasks]
-  #print("------TASKS---------------")
-  #print(tasks)
-  #print(len(tasks))
+
   config.isolate_envs = params.get('isolate_envs', 'thread')
   def common_spaces_ctor(task, action_spaces):
     env = task.env_ctor()
@@ -186,7 +185,7 @@ def _loss_functions(config, params):
   config.loss_scales.global_divergence = params.get('global_div_scale', 0.0)
   config.loss_scales.overshooting = params.get('overshooting_scale', 0.0)
   for head in config.heads:
-    defaults = {'reward': 10.0} # Originally used to be 10.0 
+    defaults = {'reward': 10.0} # Originally used to be 10.0
     scale = defaults[head] if head in defaults else 1.0
     config.loss_scales[head] = params.get(head + '_loss_scale', scale)
   config.free_nats = params.get('free_nats', 3.0)

@@ -32,13 +32,11 @@ def define_model(data, trainer, config):
   step = trainer.step
   global_step = trainer.global_step
   phase = trainer.phase
-  num_models = 5
 
 #Disagreement additions
 
   cell = []
-  for mdl in range(num_models):
-      #cell = config.cell()
+  for mdl in range(config.num_models):
       with tf.variable_scope('model_no'+str(mdl)):
           cell.append(config.cell())
           kwargs = dict(create_scope_now_=True)
@@ -68,13 +66,21 @@ def define_model(data, trainer, config):
   graph = tools.AttrDict(locals())
   posterior = []
   prior = []
-  for mdl in range(num_models):
+
+  bagging_size = int(0.8*config.batch_shape[0])
+  sample_with_replacement = tf.random.uniform([config.num_models, bagging_size], minval=0, maxval=config.batch_shape[0],
+                                                dtype= tf.dtypes.int32)
+
+  for mdl in range(config.num_models):
     with tf.variable_scope('model_no'+str(mdl)):
+      bootstrap_action_data = tf.gather(data['action'], sample_with_replacement[mdl,:], axis=0)
+      bootstrap_embedded = tf.gather(embedded, sample_with_replacement[mdl,:], axis=0)
       tmp_prior, tmp_posterior = tools.unroll.closed_loop(
-          cell[mdl], embedded, data['action'], config.debug)
+          cell[mdl], bootstrap_embedded, bootstrap_action_data, config.debug)
       prior.append(tmp_prior)
       posterior.append(tmp_posterior)
 
+  graph = tools.AttrDict(locals())
   objectives = utility.compute_objectives(
       posterior, prior, data, graph, config)
 
@@ -82,9 +88,6 @@ def define_model(data, trainer, config):
       objectives, trainer, config)
 
   graph = tools.AttrDict(locals())
-  for k,v in graph.items():
-      print('DISAGREE KEY', k)
-  # assert 1==2
   # Active data collection.
   with tf.variable_scope('collection'):
     with tf.control_dependencies(summaries):  # Make sure to train first.
