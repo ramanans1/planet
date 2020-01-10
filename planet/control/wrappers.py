@@ -528,9 +528,10 @@ class CollectGymDataset(object):
     return observ
 
   def _get_filename(self):
+    env_name = str(self._name)
     timestamp = datetime.datetime.now().strftime('%Y%m%dT%H%M%S')
     identifier = str(uuid.uuid4()).replace('-', '')
-    filename = '{}-{}.npz'.format(timestamp, identifier)
+    filename = '{}-{}-{}.npz'.format(env_name, timestamp, identifier)
     filename = os.path.join(self._outdir, filename)
     return filename
 

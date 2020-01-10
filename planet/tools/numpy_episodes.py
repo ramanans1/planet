@@ -89,8 +89,12 @@ def recent_loader(reader, directory, batch_size, every):
   cache = {}
   while True:
     episodes = []
+    print('RECENT', recent.keys())
+    print('cache', cache.keys())
     episodes += _sample(recent.values(), every // 2)
+    print('ePISODEs', len(episodes))
     episodes += _sample(cache.values(), every // 2)
+    print('ePISODEs', len(episodes))
     for episode in _permuted(episodes, every):
       yield episode
     cache.update(recent)
