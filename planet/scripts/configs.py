@@ -104,7 +104,7 @@ def _data_processing(config, params):
 
 
 def _model_components(config, params):
-  config.gradient_heads = params.get('gradient_heads', ['image', 'reward'])
+  config.gradient_heads = params.get('gradient_heads', ['image', 'reward','reward_nt'])
   network = getattr(networks, params.get('network', 'conv_ha'))
   config.activation = ACTIVATIONS[params.get('activation', 'relu')]
   config.num_layers = params.get('num_layers', 3)
@@ -178,7 +178,7 @@ def _tasks(config, params):
       if name =='reward':
           config.heads['reward_nt'] = tools.bind(
               config.head_network,
-              stop_gradient=name not in config.gradient_heads)
+              stop_gradient='reward_nt' not in config.gradient_heads)
           config.loss_scales['reward_nt'] = 1.0
 
   config.tasks = tasks
@@ -205,7 +205,7 @@ def _loss_functions(config, params):
       # schedule=tools.bind(tools.schedule.linear, ramp=0),
       learning_rate=params.get('main_learning_rate', 1e-3),
       clipping=params.get('main_gradient_clipping', 1000.0))
-  config.optimizers.reward_nt = config.optimizers.main
+  #config.optimizers.reward_nt = config.optimizers.main
   return config
 
 

@@ -250,14 +250,15 @@ def compute_objectives(full_posterior, full_prior, target, graph, config):
         task_idx = tf.squeeze(tf.where(tf.not_equal(target['name'][:,0],'cheetah_run')))
         raw_features = tf.gather(full_raw_features, task_idx)
         raw_features = tf.reshape(raw_features, [-1] + tools.shape(full_raw_features)[1:])
-        if name in config.heads and name not in config.gradient_heads:
-          features = tf.stop_gradient(raw_features)
-          include = r'.*/head_{}/.*'.format(name)
-          exclude = None
-        else:
-          features = raw_features
-          include = r'.*'
-          exclude = None
+        # if name in config.heads and name not in config.gradient_heads:
+        #   features = tf.stop_gradient(raw_features)
+        #   include = r'.*/head_{}/.*'.format(name)
+        #   exclude = None
+        # else:
+        #   features = raw_features
+        #   include = r'.*'
+        #   exclude = None
+        features = tf.stop_gradient(raw_features)
         new_target = tf.gather(target['reward'], task_idx)
         new_target = tf.reshape(new_target, [-1] + tools.shape(target['reward'])[1:])
         logprob = heads[name](features).log_prob(new_target)
